@@ -27,6 +27,7 @@ describe CartoDB::Connector::Importer do
     @user.destroy
   end
 
+  let(:overwrite) { Carto::DataImportConstants::COLLISION_STRATEGY_OVERWRITE }
   let(:skip) { DataImport::COLLISION_STRATEGY_SKIP }
 
   it 'should not fail to return a new_name when ALTERing the INDEX fails' do
@@ -193,6 +194,21 @@ describe CartoDB::Connector::Importer do
 
     data_import2.table.destroy if data_import2 && data_import2.table.id.present?
     data_import2.destroy
+  end
+
+  it 'importing the same file twice with collision strategy overwrite should be successful' do
+    name = 'dummies'
+    filepath = "#{Rails.root}/spec/support/data/#{name}.csv"
+
+    2.times do
+      @data_import = DataImport.create(
+        user_id: @user.id, data_source: filepath, collision_strategy: overwrite
+      )
+      @data_import.values[:data_source] = filepath
+      @data_import.run_import!
+    end
+
+    @data_import.success.should eq(true)
   end
 
   it 'should import tables as private if privacy param is set to private' do

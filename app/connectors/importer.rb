@@ -325,19 +325,41 @@ module CartoDB
       end
 
       def compatible_schemas_for_overwrite?(name)
-        orig_schema = user.in_database.schema(results.first.tables.first, reload: true, schema: ORIGIN_SCHEMA)
-        dest_schema = user.in_database.schema(name, reload: true, schema: user.database_schema)
+        orig_schema = user.in_database.schema(
+          results.first.tables.first, reload: true, schema: ORIGIN_SCHEMA
+        )
+        dest_schema = user.in_database.schema(
+          name, reload: true, schema: user.database_schema
+        )
 
         dest_schema.each do |dest_row|
           next if COLUMNS_NOT_TO_VALIDATE.include?(dest_row[0])
-          return false unless orig_schema.any? { |orig_row| rows_assignable?(dest_row, orig_row) }
+          return false unless schema_has_row?(orig_schema, dest_row)
         end
+
         true
       end
 
+      def schema_has_row?(schema, row)
+        schema.any? { |schema_row| rows_assignable?(row, schema_row) }
+      end
+
       def rows_assignable?(dest_row, orig_row)
-        (orig_row[0] == :the_geom && orig_row[0] == dest_row[0] && dest_row[1][:db_type].include?(orig_row[1][:db_type])) ||
-          (orig_row[0] == dest_row[0] && orig_row[1][:db_type].convert_to_cartodb_type == dest_row[1][:db_type].convert_to_cartodb_type)
+        orig_name, orig_attrs = orig_row
+        dest_name, dest_attrs = dest_row
+
+        orig_name = orig_name.to_s.gsub(' ', '_').to_sym
+        dest_name = dest_name.to_s.gsub(' ', '_').to_sym
+
+        cond_one = orig_name == :the_geom &&
+                   orig_name == dest_name &&
+                   dest_attrs[:db_type].include?(orig_attrs[:db_type])
+
+        cond_two = orig_name == dest_name &&
+                   orig_attrs[:db_type].convert_to_cartodb_type ==
+                   dest_attrs[:db_type].convert_to_cartodb_type
+
+        cond_one || cond_two
       end
 
       def user
