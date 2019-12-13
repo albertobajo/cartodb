@@ -197,18 +197,24 @@ describe CartoDB::Connector::Importer do
   end
 
   it 'importing the same file twice with collision strategy overwrite should be successful' do
-    name = 'dummies'
-    filepath = "#{Rails.root}/spec/support/data/#{name}.csv"
+    names = ['issue-15111-sample-1.csv', 'issue-15111-sample-2.kml']
+    success = true
 
-    2.times do
-      @data_import = DataImport.create(
-        user_id: @user.id, data_source: filepath, collision_strategy: overwrite
-      )
-      @data_import.values[:data_source] = filepath
-      @data_import.run_import!
+    names.each do |name|
+      filepath = "#{Rails.root}/spec/support/data/#{name}"
+
+      2.times do
+        @data_import = DataImport.create(
+          user_id: @user.id, data_source: filepath, collision_strategy: overwrite
+        )
+        @data_import.values[:data_source] = filepath
+        @data_import.run_import!
+      end
+
+      success &&= @data_import.success
     end
 
-    @data_import.success.should eq(true)
+    success.should eq(true)
   end
 
   it 'should import tables as private if privacy param is set to private' do
